@@ -19,4 +19,6 @@ jobs:
         run: npm install
 
       - name: Start bot
-        run: npm start
+  run: npm start
+  env:
+    PHONE_NUMBER: ${{ secrets.PHONE_NUMBER }}
