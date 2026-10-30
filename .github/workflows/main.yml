@@ -1,3 +1,4 @@
+
 name: WhatsApp TagAll Bot
 
 on:
@@ -6,6 +7,7 @@ on:
 jobs:
   run-bot:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,6 +21,6 @@ jobs:
         run: npm install
 
       - name: Start bot
-  run: npm start
-  env:
-    PHONE_NUMBER: ${{ secrets.PHONE_NUMBER }}
+        run: npm start
+        env:
+          PHONE_NUMBER: ${{ secrets.PHONE_NUMBER }}
