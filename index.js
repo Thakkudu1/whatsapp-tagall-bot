@@ -1,3 +1,4 @@
+
 const {
   default: makeWASocket,
   useMultiFileAuthState,
@@ -5,10 +6,10 @@ const {
 } = require('@whiskeysockets/baileys');
 
 const pino = require('pino');
-const qrcode = require('qrcode-terminal');
 
 async function startBot() {
-  const { state, saveCreds } = await useMultiFileAuthState('auth_info');
+  const { state, saveCreds } =
+    await useMultiFileAuthState('auth_info');
 
   const sock = makeWASocket({
     auth: state,
@@ -18,13 +19,19 @@ async function startBot() {
 
   sock.ev.on('creds.update', saveCreds);
 
-  sock.ev.on('connection.update', (update) => {
-    const { connection, lastDisconnect, qr } = update;
+  const phoneNumber = (process.env.PHONE_NUMBER || '')
+    .replace(/\D/g, '');
 
-    if (qr) {
-      console.log('Scan this QR code with WhatsApp:');
-      qrcode.generate(qr, { small: true });
-    }
+  if (!state.creds.registered && phoneNumber) {
+    const code = await sock.requestPairingCode(phoneNumber);
+    console.log('WhatsApp pairing code:', code);
+    console.log(
+      'WhatsApp > Linked devices > Link a device > Link with phone number instead'
+    );
+  }
+
+  sock.ev.on('connection.update', (update) => {
+    const { connection, lastDisconnect } = update;
 
     if (connection === 'open') {
       console.log('WhatsApp Bot Connected Successfully!');
@@ -34,7 +41,7 @@ async function startBot() {
       const code = lastDisconnect?.error?.output?.statusCode;
 
       if (code !== DisconnectReason.loggedOut) {
-        startBot();
+        setTimeout(() => startBot().catch(console.error), 3000);
       } else {
         console.log('WhatsApp logged out. Login again.');
       }
@@ -44,9 +51,11 @@ async function startBot() {
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const msg = messages[0];
 
-    if (!msg.message || msg.key.fromMe || !msg.key.remoteJid?.endsWith('@g.us')) {
-      return;
-    }
+    if (
+      !msg?.message ||
+      msg.key.fromMe ||
+      !msg.key.remoteJid?.endsWith('@g.us')
+    ) return;
 
     const text =
       msg.message.conversation ||
@@ -58,14 +67,11 @@ async function startBot() {
       const metadata = await sock.groupMetadata(group);
       const participants = metadata.participants.map(p => p.id);
 
-      const mentions = participants;
-      const message = participants
-        .map(jid => '@' + jid.split('@')[0])
-        .join(' ');
-
       await sock.sendMessage(group, {
-        text: message,
-        mentions
+        text: participants
+          .map(jid => '@' + jid.split('@')[0])
+          .join(' '),
+        mentions: participants
       });
     }
   });
